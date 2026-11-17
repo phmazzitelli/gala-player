@@ -54,8 +54,6 @@
   .btn:focus-visible{outline:2px solid var(--celeste);outline-offset:2px}
   .usar{color:#fff;background:linear-gradient(135deg,#0075B8 0%,#14ADE4 100%);margin-bottom:10px}
   .no{color:var(--blanco-2);background:transparent;border:.5px solid rgba(255,255,255,.18)}
-  .cambiar{margin-top:14px;color:var(--blanco-2);background:transparent;border:.5px solid rgba(255,255,255,.14);
-     font-size:13.5px;font-weight:600;padding:12px}
   .estado{display:flex;gap:12px;align-items:flex-start}
   .estado .icono{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none}
   .estado .icono svg{width:20px;height:20px}
@@ -109,8 +107,6 @@
           <p id="estadoTexto"></p>
         </div>
       </div>
-      <button class="btn cambiar" id="btnCambiar" type="button">Me equivoqué, cambiar</button>
-      <div class="error" id="error2"></div>
     </section>
 
     <p class="pie">La respuesta llega sola a la PC de GALA. Podés cerrar esta página.</p>
@@ -160,7 +156,6 @@
     $('estadoTexto').textContent = usar
       ? 'GALA lo pone en VIDEO ACTUAL y rehace las fichas del hotel en el mismo link.'
       : 'Queda anotado como rechazado. Si hay otra opción, te llega otro aviso.';
-    $('btnCambiar').dataset.r = usar ? 'quitar' : 'si';
   }
 
   function enviar(r, boton, cajaError) {
@@ -171,9 +166,8 @@
     fetch('https://ntfy.sh/' + canal, { method: 'POST', body: cuerpo })
       .then(function (resp) {
         if (!resp.ok) throw new Error('ntfy respondió ' + resp.status);
-        var final = r === 'quitar' ? 'no' : r;
-        guardar(final);
-        mostrar(final);
+        guardar(r);
+        mostrar(r);
       })
       .catch(function (e) {
         cajaError.textContent = 'No se pudo mandar la respuesta (' + e.message +
@@ -185,9 +179,6 @@
 
   $('btnUsar').addEventListener('click', function () { enviar('si', this, $('error')); });
   $('btnNo').addEventListener('click', function () { enviar('no', this, $('error')); });
-  $('btnCambiar').addEventListener('click', function () {
-    enviar(this.dataset.r || 'si', this, $('error2'));
-  });
 
   var previa = leerGuardada();
   if (previa === 'si' || previa === 'no') mostrar(previa);
