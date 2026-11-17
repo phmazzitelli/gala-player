@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#06131F">
+<title>GALA · ¿va este video?</title>
+<style>
+  /* GALA v2.44 · Aprobar el video propuesto para la ficha de un hotel.
+     Llega desde el aviso del celular (botón "Ver video"). Los datos vienen
+     después del '#', que el navegador nunca manda a GitHub:
+       aprobar.html#c=<canal>&v=<ID de YouTube>&h=<hotel>&s=<slug>
+     La respuesta se publica en el canal secreto del escuchador de la PC
+     (ntfy), que la aplica: va a VIDEO ACTUAL y la ficha se rehace sola. */
+  :root{
+    --card:#0A356A; --card-2:#082B57; --line:rgba(255,255,255,.08);
+    --celeste:#7CC4F7; --blanco:#EAF2F9; --blanco-2:#C6D4E2; --tenue:#83A0C6;
+    --amarillo-sub:#F9E97B; --verde:#4ADE80; --rojo:#F06E6E;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{min-height:100%}
+  body{
+    background:radial-gradient(130% 82% at 50% -15%,#0C2A4E 0%,#06131F 44%,#020508 100%);
+    background-color:#020508;color:var(--blanco);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;min-height:100dvh;display:flex;justify-content:center;
+    padding:max(22px,env(safe-area-inset-top)) 16px calc(26px + env(safe-area-inset-bottom));
+  }
+  .wrap{width:100%;max-width:520px;animation:rise .55s cubic-bezier(.2,.7,.2,1) both}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .brand{display:flex;align-items:center;justify-content:space-between;margin:2px 2px 18px}
+  .brand img{height:30px;width:auto;display:block}
+  .brand span{font-size:12px;letter-spacing:.08em;color:var(--amarillo-sub);font-weight:300}
+  .eyebrow{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--tenue);margin:0 2px 6px}
+  h1{font-size:22px;line-height:1.25;font-weight:650;letter-spacing:-.01em;margin:0 2px 16px;
+     overflow-wrap:anywhere}
+  .video{position:relative;width:100%;aspect-ratio:16/9;border-radius:16px;overflow:hidden;
+     background:#000;border:.5px solid var(--line);box-shadow:0 18px 40px -18px rgba(0,0,0,.8)}
+  .video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+  .yt{display:inline-flex;align-items:center;gap:6px;margin:10px 2px 0;font-size:12.5px;
+     color:var(--celeste);text-decoration:none}
+  .yt svg{width:14px;height:14px}
+  .card{margin-top:18px;background:var(--card);border:.5px solid var(--line);border-radius:16px;padding:18px}
+  .pregunta{font-size:15px;line-height:1.5;color:var(--blanco-2);margin-bottom:16px}
+  .pregunta strong{color:var(--blanco);font-weight:600}
+  .btn{width:100%;border:none;border-radius:12px;padding:15px 14px;font-size:15px;font-weight:650;
+     font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;
+     transition:transform .08s,filter .15s,opacity .15s;-webkit-tap-highlight-color:transparent}
+  .btn svg{width:18px;height:18px;flex:none}
+  .btn:active{transform:scale(.985)}
+  .btn[disabled]{opacity:.55;cursor:default}
+  .btn:focus-visible{outline:2px solid var(--celeste);outline-offset:2px}
+  .usar{color:#fff;background:linear-gradient(135deg,#0075B8 0%,#14ADE4 100%);margin-bottom:10px}
+  .no{color:var(--blanco-2);background:transparent;border:.5px solid rgba(255,255,255,.18)}
+  .cambiar{margin-top:14px;color:var(--blanco-2);background:transparent;border:.5px solid rgba(255,255,255,.14);
+     font-size:13.5px;font-weight:600;padding:12px}
+  .estado{display:flex;gap:12px;align-items:flex-start}
+  .estado .icono{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none}
+  .estado .icono svg{width:20px;height:20px}
+  .ok .icono{background:rgba(74,222,128,.14);color:var(--verde)}
+  .nova .icono{background:rgba(240,110,110,.14);color:var(--rojo)}
+  .estado h2{font-size:16px;font-weight:650;margin-bottom:4px}
+  .estado p{font-size:13.5px;line-height:1.55;color:var(--blanco-2)}
+  .error{margin-top:12px;padding:11px 12px;border-radius:10px;font-size:13px;line-height:1.5;
+     background:rgba(240,110,110,.10);border:.5px solid rgba(240,110,110,.35);color:#F3C0C0;display:none}
+  .pie{margin:16px 4px 0;font-size:11.5px;line-height:1.55;color:var(--tenue)}
+  .falta{margin-top:40px;text-align:center;color:var(--blanco-2);font-size:14px;line-height:1.6}
+  .oculto{display:none!important}
+  @media (prefers-reduced-motion:reduce){.wrap{animation:none}}
+</style>
+</head>
+<body>
+<main class="wrap" id="app">
+  <header class="brand">
+    <img src="logo-gala.webp" alt="GALA">
+    <span>video para la ficha</span>
+  </header>
+
+  <div id="contenido" class="oculto">
+    <p class="eyebrow">Video propuesto</p>
+    <h1 id="hotel">—</h1>
+
+    <div class="video" id="video"></div>
+    <a class="yt" id="enYoutube" href="#" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M10 14 20 4"/><path d="M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"/></svg>
+      Abrir en YouTube
+    </a>
+
+    <section class="card" id="decidir">
+      <p class="pregunta">Miralo entero. <strong>¿Va en la ficha de este hotel?</strong></p>
+      <button class="btn usar" id="btnUsar" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        Usar en la ficha
+      </button>
+      <button class="btn no" id="btnNo" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        No usar
+      </button>
+      <div class="error" id="error"></div>
+    </section>
+
+    <section class="card oculto" id="hecho">
+      <div class="estado" id="estado">
+        <div class="icono" id="estadoIcono"></div>
+        <div>
+          <h2 id="estadoTitulo"></h2>
+          <p id="estadoTexto"></p>
+        </div>
+      </div>
+      <button class="btn cambiar" id="btnCambiar" type="button">Me equivoqué, cambiar</button>
+      <div class="error" id="error2"></div>
+    </section>
+
+    <p class="pie">La respuesta llega sola a la PC de GALA. Podés cerrar esta página.</p>
+  </div>
+
+  <p class="falta oculto" id="falta">Este link está incompleto.<br>Abrilo de nuevo desde el aviso del celular.</p>
+</main>
+
+<script>
+(function () {
+  var ICONO_OK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+  var ICONO_NO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+
+  var q = new URLSearchParams(location.hash.replace(/^#/, ''));
+  var canal = (q.get('c') || '').replace(/[^\w-]/g, '');
+  var id = (q.get('v') || '').replace(/[^\w-]/g, '').slice(0, 20);
+  var hotel = (q.get('h') || '').slice(0, 120);
+  var slug = (q.get('s') || '').replace(/[^\w-]/g, '').slice(0, 120);
+  var $ = function (x) { return document.getElementById(x); };
+
+  if (!canal || !id) { $('falta').classList.remove('oculto'); return; }
+  $('contenido').classList.remove('oculto');
+  $('hotel').textContent = hotel || 'Hotel';
+  document.title = 'GALA · ¿va este video? · ' + (hotel || id);
+
+  var link = 'https://youtu.be/' + id;
+  $('enYoutube').href = link;
+  var f = document.createElement('iframe');
+  f.src = 'https://www.youtube.com/embed/' + id + '?rel=0&playsinline=1&modestbranding=1';
+  f.setAttribute('allow', 'autoplay; encrypted-media; fullscreen; picture-in-picture');
+  f.setAttribute('allowfullscreen', '');
+  f.setAttribute('title', 'Video propuesto');
+  $('video').appendChild(f);
+
+  // La última respuesta de este video en este celular (si el navegador la guarda).
+  var CLAVE = 'gala-aprobar-' + id;
+  function leerGuardada() { try { return localStorage.getItem(CLAVE) || ''; } catch (e) { return ''; } }
+  function guardar(r) { try { localStorage.setItem(CLAVE, r); } catch (e) {} }
+
+  function mostrar(r) {
+    var usar = r === 'si';
+    $('decidir').classList.add('oculto');
+    $('hecho').classList.remove('oculto');
+    $('estado').className = 'estado ' + (usar ? 'ok' : 'nova');
+    $('estadoIcono').innerHTML = usar ? ICONO_OK : ICONO_NO;
+    $('estadoTitulo').textContent = usar ? 'Listo: va en la ficha' : 'Listo: no va';
+    $('estadoTexto').textContent = usar
+      ? 'GALA lo pone en VIDEO ACTUAL y rehace las fichas del hotel en el mismo link.'
+      : 'Queda anotado como rechazado. Si hay otra opción, te llega otro aviso.';
+    $('btnCambiar').dataset.r = usar ? 'quitar' : 'si';
+  }
+
+  function enviar(r, boton, cajaError) {
+    var botones = document.querySelectorAll('.btn');
+    botones.forEach(function (b) { b.disabled = true; });
+    cajaError.style.display = 'none';
+    var cuerpo = JSON.stringify({ 'gala-video': r, slug: slug, hotel: hotel, link: link });
+    fetch('https://ntfy.sh/' + canal, { method: 'POST', body: cuerpo })
+      .then(function (resp) {
+        if (!resp.ok) throw new Error('ntfy respondió ' + resp.status);
+        var final = r === 'quitar' ? 'no' : r;
+        guardar(final);
+        mostrar(final);
+      })
+      .catch(function (e) {
+        cajaError.textContent = 'No se pudo mandar la respuesta (' + e.message +
+          '). Revisá la conexión y probá de nuevo.';
+        cajaError.style.display = 'block';
+      })
+      .finally(function () { botones.forEach(function (b) { b.disabled = false; }); });
+  }
+
+  $('btnUsar').addEventListener('click', function () { enviar('si', this, $('error')); });
+  $('btnNo').addEventListener('click', function () { enviar('no', this, $('error')); });
+  $('btnCambiar').addEventListener('click', function () {
+    enviar(this.dataset.r || 'si', this, $('error2'));
+  });
+
+  var previa = leerGuardada();
+  if (previa === 'si' || previa === 'no') mostrar(previa);
+})();
+</script>
+</body>
+</html>
